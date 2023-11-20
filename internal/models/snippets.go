@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -15,12 +16,12 @@ type Snippet struct {
 
 type SnippetModel struct{ DB *sql.DB }
 
-func (s *SnippetModel) Insert(title string, content string, expires int) (int, error) {
+func (sm *SnippetModel) Insert(title string, content string, expires int) (int, error) {
 
 	stmt := `INSERT INTO snippets (title, content, created, expires)
 VALUES(?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+' || ? || ' day'))`
 
-	result, err := s.DB.Exec(stmt, title, content, expires)
+	result, err := sm.DB.Exec(stmt, title, content, expires)
 	if err != nil {
 		return 0, err
 	}
@@ -33,10 +34,54 @@ VALUES(?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+' || ? || ' day'))
 	return int(id), nil
 }
 
-func (s *SnippetModel) Get(id int) (Snippet, error) {
-	return Snippet{}, nil
+func (sm *SnippetModel) Get(id int) (Snippet, error) {
+
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+WHERE expires > datetime('now') AND id = ?;`
+
+	row := sm.DB.QueryRow(stmt, id)
+
+	var s Snippet
+
+	err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Snippet{}, ErrNoRecord
+		} else {
+			return Snippet{}, err
+		}
+	}
+
+	return s, nil
 }
 
-func (s *SnippetModel) Latest() ([]Snippet, error) {
-	return nil, nil
+func (sm *SnippetModel) Latest() ([]Snippet, error) {
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+WHERE expires > datetime('now') ORDER BY id DESC LIMIT 10`
+
+	rows, err := sm.DB.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var snippets []Snippet
+
+	for rows.Next() {
+		var s Snippet
+
+		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+		if err != nil {
+			return nil, err
+		}
+
+		snippets = append(snippets, s)
+	}
+
+	if err = rows.Err(); err != nil {
+return nil, err
+	}
+
+	return snippets, nil
 }
