@@ -5,40 +5,25 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"text/template"
 
-	"github.com/straightbuggin/snippetbox.neon.toys/internal/models"
+	"github.com/alextreichler/snippetbox.neon.toys/internal/models"
 )
 
 func (a *application) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		a.notFound(w)
-		http.NotFound(w, r)
 		return
 	}
 
-
-	files := []string{
-		"./ui/html/pages/home.gohtml",
-		"./ui/html/base.gohtml",
-		"./ui/html/partials/nav.gohtml",
-	}
-
-	ts, err := template.ParseFiles(files...)
+	snippets, err := a.snippets.Latest()
 	if err != nil {
-		a.logger.Error(err.Error(),
-			"method", r.Method,
-			"uri", r.URL.RequestURI())
-		a.serverError(w, r, err)
-		return
-	}
-	err = ts.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		a.logger.Error(err.Error(),
-			"method", r.Method,
-			"uri", r.URL.RequestURI())
 		a.serverError(w, r, err)
 	}
+
+	data := a.newTemplateData(r)
+	data.Snippets = snippets
+
+	a.render(w, r, http.StatusOK, "home.gotmpl", data)
 
 }
 
@@ -59,8 +44,10 @@ func (a *application) snippetView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write the snippet data as a plain-text HTTP response body.
-	fmt.Fprintf(w, "%+v", snippet)
+	data := a.newTemplateData(r)
+	data.Snippet = snippet
+
+	a.render(w, r, http.StatusOK, "view.gotmpl", data)
 }
 
 func (a *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
