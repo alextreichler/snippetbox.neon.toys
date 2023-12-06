@@ -7,13 +7,11 @@ import (
 	"strconv"
 
 	"github.com/alextreichler/snippetbox.neon.toys/internal/models"
+	"github.com/alextreichler/snippetbox.neon.toys/internal/validator"
+	"github.com/julienschmidt/httprouter"
 )
 
 func (a *application) home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		a.notFound(w)
-		return
-	}
 
 	snippets, err := a.snippets.Latest()
 	if err != nil {
@@ -28,7 +26,10 @@ func (a *application) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *application) snippetView(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+
+	params := httprouter.ParamsFromContext(r.Context())
+
+	id, err := strconv.Atoi(params.ByName("id"))
 	if err != nil || id < 1 {
 		a.notFound(w)
 		return
@@ -51,21 +52,58 @@ func (a *application) snippetView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		a.clientError(w, http.StatusNotFound)
+	data := a.newTemplateData(r)
+
+	data.Form = snippetCreateForm{
+		Expires: 365,
+	}
+
+	a.render(w, r, http.StatusOK, "create.gotmpl", data)
+}
+
+type snippetCreateForm struct {
+	Title   string
+	Content string
+	Expires int
+	validator.Validator
+}
+
+func (a *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
+
+	err := r.ParseForm()
+	if err != nil {
+		a.clientError(w, http.StatusBadRequest)
+	}
+
+	expires, err := strconv.Atoi(r.PostForm.Get("expires"))
+	if err != nil {
+		a.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	title := "O snail"
-	content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n– Kobayashi Issa"
-	expires := 7
+	form := snippetCreateForm{
+		Title:   r.PostForm.Get("title"),
+		Content: r.PostForm.Get("content"),
+		Expires: expires,
+	}
 
-	id, err := a.snippets.Insert(title, content, expires)
+	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
+	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
+	form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
+	form.CheckField(validator.PermittedValue(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
+
+	if !form.Valid() {
+		data := a.newTemplateData(r)
+		data.Form = form
+		a.render(w, r, http.StatusUnprocessableEntity, "create.gotmpl", data)
+		return
+	}
+
+	id, err := a.snippets.Insert(form.Title, form.Content, form.Expires)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/snippet/view?id=%d", id), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
 }
