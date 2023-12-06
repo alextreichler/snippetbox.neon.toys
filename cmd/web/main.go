@@ -8,14 +8,16 @@ import (
 	"net/http"
 	"os"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/alextreichler/snippetbox.neon.toys/internal/models"
+	"github.com/go-playground/form/v4"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type application struct {
 	logger        *slog.Logger
 	snippets      *models.SnippetModel
 	templateCache map[string]*template.Template
+	formDecoder   *form.Decoder
 }
 
 func main() {
@@ -38,6 +40,8 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
+
+	formDecoder := form.NewDecoder()
 
 	a := &application{
 		logger:        logger,
