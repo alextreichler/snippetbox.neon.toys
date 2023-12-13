@@ -77,15 +77,20 @@ func (a *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
-	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
-	form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
-	form.CheckField(validator.PermittedValue(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
+	form.CheckField(validator.NotBlank(form.Title),
+		"title", "This field cannot be blank")
+	form.CheckField(validator.MaxChars(form.Title, 100),
+		"title", "This field cannot be more than 100 characters long")
+	form.CheckField(validator.NotBlank(form.Content),
+		"content", "This field cannot be blank")
+	form.CheckField(validator.PermittedValue(form.Expires, 1, 7, 365),
+		"expires", "This field must equal 1, 7 or 365")
 
 	if !form.Valid() {
 		data := a.newTemplateData(r)
 		data.Form = form
-		a.render(w, r, http.StatusUnprocessableEntity, "create.gotmpl", data)
+		a.render(w, r, http.StatusUnprocessableEntity,
+			"create.gotmpl", data)
 		return
 	}
 	id, err := a.snippets.Insert(form.Title, form.Content, form.Expires)
@@ -94,5 +99,8 @@ func (a *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
+	a.sessionManager.Put(r.Context(), "flash", "Snippet successfully created!")
+
+	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id),
+		http.StatusSeeOther)
 }
