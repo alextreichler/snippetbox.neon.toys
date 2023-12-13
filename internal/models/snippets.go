@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -18,10 +19,11 @@ type SnippetModel struct{ DB *sql.DB }
 
 func (sm *SnippetModel) Insert(title string, content string, expires int) (int, error) {
 
-	stmt := `INSERT INTO snippets (title, content, created, expires)
-VALUES(?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+' || ? || ' day'))`
+	// Construct the query string with actual values for debugging
+	debugStmt := fmt.Sprintf("INSERT INTO snippets (title, content, created, expires) VALUES('%s', '%s', CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+%d day'))", title, content, expires)
 
-	result, err := sm.DB.Exec(stmt, title, content, expires)
+	// stmt := `INSERT INTO snippets (title, content, created, expires) VALUES(?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+' || ? || 'day'))`
+	result, err := sm.DB.Exec(debugStmt, title, content, expires)
 	if err != nil {
 		return 0, err
 	}
@@ -80,7 +82,7 @@ WHERE expires > datetime('now') ORDER BY id DESC LIMIT 10`
 	}
 
 	if err = rows.Err(); err != nil {
-return nil, err
+		return nil, err
 	}
 
 	return snippets, nil

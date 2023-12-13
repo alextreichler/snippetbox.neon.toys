@@ -88,7 +88,6 @@ func (a *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) 
 		a.render(w, r, http.StatusUnprocessableEntity, "create.gotmpl", data)
 		return
 	}
-
 	id, err := a.snippets.Insert(form.Title, form.Content, form.Expires)
 	if err != nil {
 		a.serverError(w, r, err)
