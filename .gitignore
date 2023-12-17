@@ -49,3 +49,4 @@ flycheck_*.el
 
 # sqlite3
 *.db
+tls/
