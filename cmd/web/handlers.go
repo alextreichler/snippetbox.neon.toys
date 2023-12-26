@@ -104,3 +104,55 @@ func (a *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) 
 	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id),
 		http.StatusSeeOther)
 }
+
+type userSignupForm struct {
+	Name                string `form:"name"`
+	Email               string `form:"email"`
+	Password            string `form:"password"`
+	validator.Validator `form:"-"`
+}
+
+func (a *application) userSignup(w http.ResponseWriter, r *http.Request) {
+	data := a.newTemplateData(r)
+	data.Form = userSignupForm{}
+	a.render(w, r, http.StatusOK, "signup.gotmpl", data)
+
+}
+
+func (a *application) userSignupPost(w http.ResponseWriter, r *http.Request) {
+	var form userSignupForm
+
+	err := a.decodePostForm(r, &form)
+	if err != nil {
+		a.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	form.CheckField(validator.NotBlank(form.Name), "name", "This field cannot be blank")
+	form.CheckField(validator.NotBlank(form.Email), "email", "This field cannot be blank")
+	form.CheckField(validator.Matches(form.Email, validator.EmailRX), "email", "This field must be a valid email address")
+	form.CheckField(validator.NotBlank(form.Password), "password", "This field cannot be blank")
+	form.CheckField(validator.MinChars(form.Password, 8), "password", "This field must be at least 8 characters long")
+
+	if !form.Valid() {
+		data := a.newTemplateData(r)
+		data.Form = form
+		a.render(w, r, http.StatusUnprocessableEntity, "signup.gotmpl", data)
+		return
+	}
+
+	fmt.Fprintln(w, "Create a new user...")
+
+}
+
+func (a *application) userLogin(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "login form")
+}
+
+func (a *application) userLoginPost(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "authenticate and login")
+}
+
+func (a *application) userLogoutPost(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "logout")
+}
